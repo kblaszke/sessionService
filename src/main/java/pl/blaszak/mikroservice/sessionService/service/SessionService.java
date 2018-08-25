@@ -1,5 +1,6 @@
 package pl.blaszak.mikroservice.sessionService.service;
 
+import org.springframework.jdbc.core.JdbcTemplate;
 import pl.blaszak.microservice.session.SessionState;
 import pl.blaszak.mikroservice.sessionService.database.SessionsRepository;
 import pl.blaszak.mikroservice.sessionService.database.model.Session;
@@ -11,9 +12,11 @@ public class SessionService {
 
     public static final long DEFAULT_TTL_MILS = 120000;
 
+    private final JdbcTemplate jdbcTemplate;
     private final SessionsRepository sessionsRepository;
 
-    public SessionService(SessionsRepository sessionsRepository) {
+    public SessionService(JdbcTemplate jdbcTemplate, SessionsRepository sessionsRepository) {
+        this.jdbcTemplate = jdbcTemplate;
         this.sessionsRepository = sessionsRepository;
     }
 
@@ -41,5 +44,10 @@ public class SessionService {
         session.setLastRefreshed(now);
         sessionsRepository.save(session);
         return SessionState.REFRESHED;
+    }
+
+    public void removeInactiveSessions() {
+        String DELETE_QUERY = "DELETE FROM session WHERE DATE_ADD(last_refreshed, interval FLOOR(ttl/1000) second) < NOW()";
+        jdbcTemplate.execute(DELETE_QUERY);
     }
 }
